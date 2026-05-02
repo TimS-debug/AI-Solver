@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<link rel="icon" href="/icon.png" type="image/x-icon">
+<meta charset="UTF-8">
+<title>AI Solver</title>
+
+<style>
+body {
+  margin: 0;
+  font-family: 'Segoe UI';
+  background: radial-gradient(circle at top, #1a1f2b, #0a0d12);
+  color: white;
+  display: flex;
+  justify-content: center;
+  padding: 40px;
+}
+
+.container {
+  width: 560px;
+  background: rgba(20,25,35,0.9);
+  padding: 25px;
+  border-radius: 20px;
+  backdrop-filter: blur(10px);
+}
+
+textarea {
+  width: 100%;
+  height: 120px;
+  margin-top: 10px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid #2c3955;
+  background: #0c0f14;
+  color: white;
+  resize: none;
+}
+
+button {
+  width: 100%;
+  padding: 12px;
+  margin-top: 10px;
+  border: none;
+  border-radius: 12px;
+  background: linear-gradient(135deg,#4f7cff,#7f9cff);
+  color: white;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+button:hover {
+  transform: scale(1.03);
+  box-shadow: 0 0 20px rgba(79,124,255,0.6);
+}
+
+.file-label {
+  display: block;
+  padding: 14px;
+  margin-top: 10px;
+  text-align: center;
+  border-radius: 12px;
+  border: 1px solid #2c3955;
+  background: linear-gradient(135deg, #1b2230, #10151f);
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.file-label:hover {
+  transform: scale(1.05);
+  border-color: #4f7cff;
+  box-shadow: 0 0 20px rgba(79,124,255,0.4);
+}
+
+input[type="file"] {
+  display: none;
+}
+
+/* 📷 preview */
+#preview {
+  margin-top: 12px;
+  width: 100%;
+  max-height: 260px;
+  object-fit: contain;
+  border-radius: 12px;
+  border: 1px solid #2c3955;
+  display: none;
+}
+
+/* статус */
+#status {
+  margin-top: 10px;
+  color: #aaa;
+  font-size: 14px;
+}
+
+/* 💡 точки */
+.dots::after {
+  content: "";
+  animation: dots 1.2s steps(3,end) infinite;
+}
+
+@keyframes dots {
+  0% { content: "."; }
+  33% { content: ".."; }
+  66% { content: "..."; }
+  100% { content: "."; }
+}
+
+#result {
+  margin-top: 20px;
+  padding: 15px;
+  background: #0c0f14;
+  border-radius: 12px;
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+p {
+  margin: 8px 0;
+  line-height: 1.6;
+}
+
+.title { color: #9ecbff; font-weight: bold; }
+.blue { color: #8ab4ff; }
+.yellow { color: #ffd166; }
+.green { color: #00e0a4; font-weight: bold; }
+
+.cursor::after {
+  content: "▍";
+  animation: blink 0.8s infinite;
+}
+
+@keyframes blink {
+  50% { opacity: 0; }
+}
+
+/* ✨ АНИМАЦИЯ ФРАЗ */
+.fade-in {
+  animation: fadeUp 0.25s ease;
+}
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h2>🤖 AI Решебник</h2>
+
+<textarea id="text" placeholder="Введи задачу..."></textarea>
+
+<button onclick="solveText()">Решить текст</button>
+
+<label class="file-label">
+📷 Загрузить фото
+<input type="file" id="file" accept="image/*">
+</label>
+
+<img id="preview">
+
+<button onclick="solveImage()">Решить фото</button>
+
+<div id="status"></div>
+<div id="result"></div>
+
+</div>
+
+<script>
+
+let thinkingInterval;
+
+/* 🧠 фразы */
+const phrases = [
+  "🔥 Решаю задачу",
+  "🤓 Что дано мне не дано",
+  "✨ Остались маленькие штрихи",
+  "🌈 Додумываю решение"
+];
+
+let phraseIndex = 0;
+
+/* старт */
+function startThinking() {
+  const status = document.getElementById("status");
+
+  status.innerHTML = `<span class="dots fade-in">${phrases[0]}</span>`;
+
+  phraseIndex = 0;
+
+  thinkingInterval = setInterval(() => {
+    phraseIndex = (phraseIndex + 1) % phrases.length;
+
+    status.innerHTML = "";
+
+    const span = document.createElement("span");
+    span.className = "dots fade-in";
+    span.textContent = phrases[phraseIndex];
+
+    status.appendChild(span);
+
+  }, 3000);
+}
+
+/* стоп */
+function stopThinking() {
+  clearInterval(thinkingInterval);
+  document.getElementById("status").innerText = "✔ Готово";
+}
+
+/* чистка */
+function cleanText(text) {
+  return text
+    .replace(/\{up\}|\{down\}/g, "")
+    .replace(/\*\*(.*?)\*\*/g, "$1")
+    .replace(/_/g, "/")
+    .replace(/\\/g, "")
+    .trim();
+}
+
+/* render */
+function render(text) {
+
+  text = text
+    .replace(/📘/g, "\n📘")
+    .replace(/📌/g, "\n📌")
+    .replace(/🧠/g, "\n🧠")
+    .replace(/✔/g, "\n✔");
+
+  return text.split("\n").map(l => {
+
+    if (l.includes("📘")) return `<p class="title">${l}</p>`;
+    if (l.includes("📌")) return `<p class="blue">${l}</p>`;
+    if (l.includes("🧠")) return `<p class="yellow">${l}</p>`;
+    if (l.includes("✔")) return `<p class="green">${l}</p>`;
+
+    return `<p>${l}</p>`;
+  }).join("");
+}
+
+/* typing */
+async function typeText(text, element) {
+  element.innerHTML = "";
+
+  let buffer = "";
+
+  for (let i = 0; i < text.length; i++) {
+    buffer += text[i];
+    element.innerHTML = buffer + "<span class='cursor'></span>";
+    await new Promise(r => setTimeout(r, 3));
+  }
+
+  return buffer;
+}
+
+/* TEXT */
+async function solveText() {
+  const text = document.getElementById("text").value;
+  const result = document.getElementById("result");
+
+  startThinking();
+  result.innerHTML = "";
+
+  const res = await fetch("http://localhost:3000/solve-text", {
+    method: "POST",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({ text })
+  });
+
+  const data = await res.json();
+
+  stopThinking();
+
+  const cleaned = cleanText(data.answer || "");
+  const typed = await typeText(cleaned, result);
+
+  result.innerHTML = render(typed);
+}
+
+/* IMAGE */
+async function solveImage() {
+  const file = document.getElementById("file").files[0];
+  const result = document.getElementById("result");
+
+  const fd = new FormData();
+  fd.append("image", file);
+
+  startThinking();
+  result.innerHTML = "";
+
+  const res = await fetch("http://localhost:3000/solve-image", {
+    method: "POST",
+    body: fd
+  });
+
+  const data = await res.json();
+
+  stopThinking();
+
+  const cleaned = cleanText(data.answer || "");
+  const typed = await typeText(cleaned, result);
+
+  result.innerHTML = render(typed);
+}
+
+/* preview */
+document.getElementById("file").addEventListener("change", e => {
+  const file = e.target.files[0];
+  const preview = document.getElementById("preview");
+
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = ev => {
+    preview.src = ev.target.result;
+    preview.style.display = "block";
+  };
+  reader.readAsDataURL(file);
+});
+
+</script>
+
+</body>
+</html>
